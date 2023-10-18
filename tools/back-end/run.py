@@ -1,6 +1,6 @@
 from flask import Flask, request, render_template
 #from access_v1 import chatie # 非官方接口
-from access_ty import chatie # 官方接口
+from access_tyqw import chatie # 官方接口
 import json
  
 app = Flask(__name__, template_folder='../front-end', static_folder='../front-end')

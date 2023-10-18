@@ -4,10 +4,10 @@ import random
 import ast
 
 from gradio_client import Client
-from revChatGPT.V1 import Chatbot
+# from revChatGPT.V1 import Chatbot
 import re
-import openai
-import itertools
+# import openai
+# import itertools
 
 df_access = [
     ('@gYaKlfLGewYYkmZb7T3BlbkFJouvA5wegTYHbPcgWgI4D', 'sk-1Ni')
@@ -135,8 +135,13 @@ df_eet = {
                 'Life:Die': ['Agent', 'Victim', 'Instrument', 'Time', 'Place']},
 }
 
+re_s1_p_ty = {
+    'chinese': '''给定的句子为："{}"\n\n给定关系列表：{}\n\n在这个句子中，可能包含了哪些关系？\n请根据给定的句子找出其中涉及的关系，\n如果不存在则不用打印\n若存在就按照元组形式回复，只打印关系结果就行，其他不用打印，例如(关系1,关系2,.....)''',
+    'english': '''The given sentence is "{}"\n\nList of given relations: {}\n\nWhat relations in the given list might be included in this given sentence?\nIf not present, answer: none.\nRespond as a tuple, e.g. (relation 1, relation 2, ......):''',
+}
+
 re_s1_p = {
-    'chinese': '''给定的句子为："{}"\n\n给定关系列表：{}\n\n在这个句子中，可能包含了哪些关系？\n请给出关系列表中的关系。\n如果不存在则回答：无\n按照元组形式回复，如 (关系1, 关系2, ……)：''',
+    'chinese': '''给定的句子为："{}"\n\n给定关系列表：{}\n\n在给定的句子中，可能包含了给定关系列表中的哪些关系，请按照元组形式回复，如 (成立日期:[企业名称, 具体日期], 法定代表人:[企业名称, 人名])。\n\n如果不存在则回答：无\n''',
     'english': '''The given sentence is "{}"\n\nList of given relations: {}\n\nWhat relations in the given list might be included in this given sentence?\nIf not present, answer: none.\nRespond as a tuple, e.g. (relation 1, relation 2, ......):''',
 }
 
@@ -181,14 +186,19 @@ def chat_re(inda, chatbot):
     try:
         print('---stage1---')
         # 构造prompt
-        stage1_tl = list(typelist.keys())
-        s1p = re_s1_p[lang].format(sent, str(stage1_tl))
+        #stage1_tl = list(typelist.keys())
+        stage1_tl = typelist
+        s1p = re_s1_p[lang].format(sent, str(stage1_tl))  #换成 re_s1_p_ty 话术试试
+        #s1p = re_s2_p[lang].format(sent, str(stage1_tl)) #调整为s2调试 re_s2_p[lang].format(st, ot, r, st, ot)
         print(s1p)
 
         # 请求chatgpt
         mess.append({"role": "user", "content": s1p})
+
+        print("调用qy模型，参数",mess)
         text1 = chatbot(mess)
         mess.append({"role": "assistant", "content": text1})
+        print("调用qy模型，反馈结果：")
         print(text1)
 
         # 正则提取结果
@@ -207,7 +217,7 @@ def chat_re(inda, chatbot):
         print('re stage 1 none out or error')
         return ['error-stage1:' + str(e)], mess
 
-    print('---stage2')
+    print('---stage2----')
     try:
         for r in rels:
             if r in typelist:
@@ -457,31 +467,28 @@ def chat_ee(inda, chatbot):
 
 
 # 封装openai Create,实现换key功能
-with open("tokens.txt", "r") as f:
-    keys = f.readlines()
-    keys = [key.strip() for key in keys]
-    print('HI,this is not real ', keys)
-all_keys = itertools.cycle(keys)
+# with open("tokens.txt", "r") as f:
+#     keys = f.readlines()
+#     keys = [key.strip() for key in keys]
+#     print('HI,this is not real ', keys)
+# all_keys = itertools.cycle(keys)
 
 
-def create(**args):
-    global all_keys
-    openai.api_key = next(all_keys)
-
-    try:
-        result = openai.ChatCompletion.create(**args)
-    except openai.error.RateLimitError:
-        result = create(**args)
-
-    return result
+# def create(**args):
+#     global all_keys
+#     openai.api_key = next(all_keys)
+#
+#     try:
+#         result = openai.ChatCompletion.create(**args)
+#     except openai.error.RateLimitError:
+#         result = create(**args)
+#
+#     return result
 
 
 def chat(mess):
     print(" tiaozheng qytw ")
-    # openai.proxy = 'http://127.0.0.1:33174' # 根据自己服务器的vpn情况设置proxy；如果是在自己电脑线下使用，可以在电脑上开vpn然后不加此句代码。
-    # openai.api_base = " https://cute-dodo-56-kn3795pgdkaz.deno.dev/" #或者利用反向代理openai.com（代理获取：https://github.com/justjavac/openai-proxy）（注释掉上面那句代码）
 
-    # openai.api_base = "https://api.openai-proxy.com/v1/chat/completions"
 
     # responde = create(
     #     model="gpt-3.5-turbo",
@@ -513,8 +520,8 @@ def chatie(input_data):
     ## account
     if access == "":
         print('using default access token')
-        tempes = random.choice(df_access)
-        input_data['access'] = tempes[1] + tempes[0][1:]
+        # tempes = random.choice(df_access)
+        # input_data['access'] = tempes[1] + tempes[0][1:]
 
     ## chatgpt
     try:
@@ -562,19 +569,11 @@ def chatie(input_data):
 
 
 if __name__ == "__main__":
-    p = '''第五部：《如懿传》《如懿传》是一部古装宫廷情感电视剧，由汪俊执导，周迅、霍建华、张钧甯、董洁、辛芷蕾、童瑶、李纯、邬君梅等主演'''
-    # p = '''Mr. Johnson retired before the 2005 season and briefly worked as a football analyst for WBZ-TV in Boston .'''
-    # '''Four other Google executives the chief financial officer , George Reyes ; the senior vice president for business operations , Shona Brown ; the chief legal officer , David Drummond ; and the senior vice president for product management , Jonathan Rosenberg earned salaries of $ 250,000 each .'''
-    # -------
-    # p = '''中国共产党创立于中华民国大陆时期，由陈独秀和李大钊领导组织。'''
-    # p = '''James worked for Google in Beijing, the capital of China.'''
-    # --------
-    # p = '''在2022年卡塔尔世界杯决赛中，阿根廷以点球大战险胜法国。'''
-    # p = '''Yesterday Bob and his wife got divorced in Guangzhou.'''
+    #p = '''第五部：《如懿传》是一部古装宫廷情感电视剧，由汪俊执导，周迅、霍建华、张钧甯、董洁、辛芷蕾、童瑶、李纯、邬君梅等主演'''
+    p = '''《如懿传》是一部电视剧，导演是汪俊，由周迅、霍建华、张钧甯、董洁、辛芷蕾、童瑶、李纯、邬君梅等主演'''
 
     ind = {
         "sentence": p,
-
         "type": "",
         "access": "",
         "task": "RE",
